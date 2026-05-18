@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+python-dotenv
+streamlit
+requests
+google-genai
+pandas
+email-validator
+psycopg[binary]
