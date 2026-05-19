@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from api_client import BASE_URL, get, post
+from api_client import BASE_URL, delete, get, post
 
 st.set_page_config(
     page_title="Student Digital Guardian",
@@ -20,7 +20,7 @@ APP_OPTIONS = [
     "Study App",
 ]
 
-MENU_OPTIONS = [
+BASE_MENU_OPTIONS = [
     "Overview",
     "Register",
     "Login",
@@ -227,10 +227,19 @@ def initialize_state():
         st.session_state.user = None
     if "paired_students" not in st.session_state:
         st.session_state.paired_students = []
+    if "admin_users" not in st.session_state:
+        st.session_state.admin_users = []
 
 
 def user():
     return st.session_state.user
+
+
+def auth_token():
+    current_user = user()
+    if not current_user:
+        return None
+    return current_user.get("access_token")
 
 
 def logged_in():
@@ -243,6 +252,10 @@ def is_parent():
 
 def is_student():
     return logged_in() and user()["role"] == "student"
+
+
+def is_admin():
+    return logged_in() and user()["role"] == "admin"
 
 
 def render_hero():
@@ -335,7 +348,7 @@ def load_parent_students(force: bool = False):
         return st.session_state.paired_students
 
     try:
-        students = get(f"/auth/parent/{user()['id']}/students")
+        students = get("/auth/me/students", token=auth_token())
     except Exception:
         students = []
     st.session_state.paired_students = students
@@ -369,7 +382,10 @@ def show_sidebar():
     with st.sidebar:
         st.markdown("### Control Center")
         st.caption("Move through the demo from account setup to monitoring.")
-        menu = st.radio("Workspace", MENU_OPTIONS, label_visibility="collapsed")
+        menu_options = list(BASE_MENU_OPTIONS)
+        if is_admin():
+            menu_options.append("Admin")
+        menu = st.radio("Workspace", menu_options, label_visibility="collapsed")
         st.divider()
 
         current_user = user()
@@ -379,8 +395,13 @@ def show_sidebar():
             if current_user.get("pair_code"):
                 st.caption(f"Student pair code: {current_user['pair_code']}")
             if st.button("Log Out", use_container_width=True):
+                try:
+                    post("/auth/logout", {}, token=auth_token())
+                except Exception:
+                    pass
                 st.session_state.user = None
                 st.session_state.paired_students = []
+                st.session_state.admin_users = []
                 st.rerun()
         else:
             render_status_card("Session", "Guest mode")
@@ -440,13 +461,20 @@ def render_register():
         with col2:
             password = st.text_input("Password", type="password")
             role = st.selectbox("Role", ["parent", "student"])
+        invite_code = st.text_input("Invite code (optional)", placeholder="Only needed if registration is restricted")
         submitted = st.form_submit_button("Create account")
 
     if submitted:
         try:
             data = post(
                 "/auth/register",
-                {"name": name, "email": email, "password": password, "role": role},
+                {
+                    "name": name,
+                    "email": email,
+                    "password": password,
+                    "role": role,
+                    "invite_code": invite_code or None,
+                },
             )
             st.success("Registration successful.")
             col1, col2 = st.columns(2)
@@ -474,12 +502,15 @@ def render_login():
     if submitted:
         try:
             data = post("/auth/login", {"email": email, "password": password})
-            st.session_state.user = data
-            if data["role"] == "parent":
+            user_data = data["user"]
+            user_data["access_token"] = data["access_token"]
+            user_data["expires_at"] = data["expires_at"]
+            st.session_state.user = user_data
+            if user_data["role"] in ["parent", "admin"]:
                 load_parent_students(force=True)
             else:
                 st.session_state.paired_students = []
-            st.success(f"Logged in as {data['name']} ({data['role']}).")
+            st.success(f"Logged in as {user_data['name']} ({user_data['role']}).")
             st.rerun()
         except Exception as error:
             st.error(parse_error(error))
@@ -510,7 +541,7 @@ def render_pair_student():
 
     if submitted:
         try:
-            data = post("/auth/pair", {"parent_id": user()["id"], "pair_code": pair_code})
+            data = post("/auth/pair", {"pair_code": pair_code}, token=auth_token())
             load_parent_students(force=True)
             st.success(data["message"])
             render_status_card("Connected student", f"{data['student_name']} (ID {data['student_id']})")
@@ -540,6 +571,10 @@ def render_add_usage():
         "Feed usage events into the workflow to trigger agent analysis, alerts, and dashboard updates.",
     )
 
+    if not logged_in():
+        render_empty_state("Log in first to add usage events.")
+        return
+
     with st.form("usage_form", clear_on_submit=False):
         col1, col2 = st.columns(2)
         with col1:
@@ -560,6 +595,7 @@ def render_add_usage():
                     "duration_minutes": int(duration),
                     "limit_minutes": int(limit),
                 },
+                token=auth_token(),
             )
             st.success("Usage event saved.")
             usage = data["usage"]
@@ -589,11 +625,15 @@ def render_dashboard():
         "Review tracked app activity, total minutes, and app-by-app distribution for a selected student.",
     )
 
+    if not logged_in():
+        render_empty_state("Log in first to open the dashboard.")
+        return
+
     student_id = choose_student("Student", "dashboard_student")
     if st.button("Load dashboard", use_container_width=False):
         try:
-            usage = get(f"/usage/student/{student_id}")
-            summary = get(f"/usage/student/{student_id}/summary")
+            usage = get(f"/usage/student/{student_id}", token=auth_token())
+            summary = get(f"/usage/student/{student_id}/summary", token=auth_token())
 
             total_minutes = sum(summary.values())
             blocked_count = sum(1 for row in usage if row["is_blocked"])
@@ -638,10 +678,14 @@ def render_alerts():
         "See the warnings produced by the usage agent workflow, ordered from newest to oldest.",
     )
 
+    if not logged_in():
+        render_empty_state("Log in first to view alerts.")
+        return
+
     student_id = choose_student("Student", "alerts_student")
     if st.button("Load alerts", use_container_width=False):
         try:
-            alerts = get(f"/alerts/student/{student_id}")
+            alerts = get(f"/alerts/student/{student_id}", token=auth_token())
             if alerts:
                 high_count = sum(1 for alert in alerts if alert["severity"].lower() == "high")
                 col1, col2 = st.columns(2)
@@ -673,6 +717,10 @@ def render_chatbot():
         "Ask for a behavior summary, intervention ideas, or a quick explanation of the student's current app pattern.",
     )
 
+    if not logged_in():
+        render_empty_state("Log in first to use the AI assistant.")
+        return
+
     with st.form("chatbot_form", clear_on_submit=False):
         student_id = choose_student("Student", "chat_student")
         question = st.text_area(
@@ -684,7 +732,11 @@ def render_chatbot():
 
     if submitted:
         try:
-            data = post("/chatbot/ask", {"student_id": int(student_id), "question": question})
+            data = post(
+                "/chatbot/ask",
+                {"student_id": int(student_id), "question": question},
+                token=auth_token(),
+            )
             st.subheader("AI answer")
             st.markdown(
                 f'<div class="section-card report-card"><p class="section-copy">{data["answer"]}</p></div>',
@@ -709,10 +761,14 @@ def render_daily_report():
         "Generate a plain-language summary that you can read out or share during a parent demo.",
     )
 
+    if not logged_in():
+        render_empty_state("Log in first to generate reports.")
+        return
+
     student_id = choose_student("Student", "report_student")
     if st.button("Generate report", use_container_width=False):
         try:
-            data = get(f"/reports/student/{student_id}/daily")
+            data = get(f"/reports/student/{student_id}/daily", token=auth_token())
             st.markdown(
                 f'<div class="section-card report-card"><div class="section-title">Report</div>'
                 f'<p class="section-copy">{data["report"]}</p></div>',
@@ -720,6 +776,74 @@ def render_daily_report():
             )
         except Exception as error:
             st.error(parse_error(error))
+
+
+def render_admin():
+    render_section_intro(
+        "Admin console",
+        "Manage demo users, clear student records, and reset the shared demo dataset.",
+    )
+
+    if not is_admin():
+        render_empty_state("An admin account is required to open the admin console.")
+        return
+
+    col1, col2 = st.columns([1.2, 0.8], gap="large")
+    with col1:
+        if st.button("Load users", use_container_width=False):
+            try:
+                data = get("/admin/users", token=auth_token())
+                st.session_state.admin_users = data["users"]
+            except Exception as error:
+                st.error(parse_error(error))
+
+        if st.session_state.admin_users:
+            users_df = pd.DataFrame(st.session_state.admin_users).rename(
+                columns={
+                    "id": "User ID",
+                    "name": "Name",
+                    "email": "Email",
+                    "role": "Role",
+                    "pair_code": "Pair Code",
+                    "created_at": "Created At",
+                    "usage_events": "Usage Events",
+                    "alerts": "Alerts",
+                    "linked_students": "Linked Students",
+                }
+            )
+            st.dataframe(users_df, use_container_width=True, hide_index=True)
+        else:
+            render_empty_state("Load users to review accounts and metrics.")
+
+    with col2:
+        with st.form("admin_reset_student_data", clear_on_submit=True):
+            student_id = st.number_input("Student ID to clear", min_value=1, value=1, step=1)
+            submitted = st.form_submit_button("Clear student usage")
+        if submitted:
+            try:
+                data = delete(f"/admin/students/{int(student_id)}/data", token=auth_token())
+                st.success(data["message"])
+            except Exception as error:
+                st.error(parse_error(error))
+
+        with st.form("admin_delete_user", clear_on_submit=True):
+            user_id = st.number_input("User ID to delete", min_value=1, value=1, step=1, key="admin_delete_user_id")
+            submitted = st.form_submit_button("Delete user")
+        if submitted:
+            try:
+                data = delete(f"/admin/users/{int(user_id)}", token=auth_token())
+                st.success(data["message"])
+                st.session_state.admin_users = []
+            except Exception as error:
+                st.error(parse_error(error))
+
+        if st.button("Reset demo data", use_container_width=True):
+            try:
+                data = post("/admin/reset-demo-data", {}, token=auth_token())
+                st.success(data["message"])
+                st.session_state.paired_students = []
+            except Exception as error:
+                st.error(parse_error(error))
 
 
 initialize_state()
@@ -745,3 +869,5 @@ elif menu == "AI Chatbot":
     render_chatbot()
 elif menu == "Daily Report":
     render_daily_report()
+elif menu == "Admin":
+    render_admin()

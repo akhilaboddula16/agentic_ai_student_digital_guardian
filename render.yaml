@@ -19,6 +19,14 @@ services:
         sync: false
       - key: GROQ_MODEL
         sync: false
+      - key: TOKEN_TTL_MINUTES
+        sync: false
+      - key: REGISTRATION_MODE
+        sync: false
+      - key: REGISTRATION_INVITE_CODE
+        sync: false
+      - key: ADMIN_EMAILS
+        sync: false
       - key: ALLOWED_ORIGINS
         sync: false
   - type: web

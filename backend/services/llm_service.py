@@ -1,5 +1,3 @@
-from groq import Groq
-
 from backend.config import GROQ_API_KEY, GROQ_MODEL
 
 
@@ -8,6 +6,8 @@ def ask_llm(question: str, usage_summary: dict) -> str:
         return fallback_answer(question, usage_summary)
 
     try:
+        from groq import Groq
+
         client = Groq(api_key=GROQ_API_KEY)
 
         prompt = f"""

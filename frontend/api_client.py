@@ -23,19 +23,38 @@ BASE_URL = (
 REQUEST_TIMEOUT_SECONDS = 60
 
 
-def post(path, payload):
+def _headers(token: str | None = None):
+    headers = {}
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    return headers
+
+
+def post(path, payload, token: str | None = None):
     response = requests.post(
         f"{BASE_URL}{path}",
         json=payload,
+        headers=_headers(token),
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
     response.raise_for_status()
     return response.json()
 
 
-def get(path):
+def get(path, token: str | None = None):
     response = requests.get(
         f"{BASE_URL}{path}",
+        headers=_headers(token),
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def delete(path, token: str | None = None):
+    response = requests.delete(
+        f"{BASE_URL}{path}",
+        headers=_headers(token),
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
     response.raise_for_status()

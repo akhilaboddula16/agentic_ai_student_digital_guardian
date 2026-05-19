@@ -1,11 +1,16 @@
 from sqlalchemy.orm import Session
 from backend.models.usage_model import AppUsage
 from backend.models.alert_model import Alert
+from backend.models.user_model import User
 from backend.schemas.usage_schema import UsageCreate
 from backend.agents.graph import run_usage_agent_workflow
 
 
 def add_usage(db: Session, usage: UsageCreate):
+    student = db.query(User).filter(User.id == usage.student_id, User.role == "student").first()
+    if not student:
+        raise ValueError("Student not found")
+
     state = run_usage_agent_workflow(usage.model_dump())
 
     record = AppUsage(

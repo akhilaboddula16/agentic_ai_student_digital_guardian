@@ -24,17 +24,21 @@ The app supports a simple parent-student monitoring flow:
 ## Features
 
 - Parent and student registration
+- Password hashing with secure login sessions
+- Role-aware access control for student, parent, and admin users
 - Pair code based parent-student linking
 - Simulated app usage tracking
 - Usage limit checks
 - Alert generation
 - Daily usage report
 - Groq-powered chatbot with fallback response
+- Admin tools for viewing users and resetting demo data
 - Simple agent workflow:
   - Monitoring Agent
   - Analysis Agent
   - Decision Agent
   - Action Agent
+- Automated backend integration tests
 - Android demo skeleton for future real-device integration
 
 ## Tech Stack
@@ -76,11 +80,13 @@ student-digital-guardian-code/
 
 The backend exposes APIs for:
 - authentication
+- secure bearer-token session validation
 - pairing parent and student accounts
 - adding usage records
 - viewing alerts
 - generating daily reports
 - chatbot questions
+- admin data management
 
 Main entrypoint:
 - [backend/main.py](backend/main.py)
@@ -153,12 +159,18 @@ Example:
 GROQ_API_KEY=your_real_key_here
 GROQ_MODEL=llama-3.1-8b-instant
 BACKEND_URL=http://127.0.0.1:8000
+TOKEN_TTL_MINUTES=480
+REGISTRATION_MODE=open
+REGISTRATION_INVITE_CODE=
+ADMIN_EMAILS=
 ```
 
 Notes:
 - `DATABASE_URL` is optional for local development
 - `ALLOWED_ORIGINS` is optional for local development
 - if `GROQ_API_KEY` is empty, the chatbot still works with a fallback response
+- set `REGISTRATION_MODE=invite_only` and `REGISTRATION_INVITE_CODE=...` if you want to lock down public signups
+- set `ADMIN_EMAILS=you@example.com` to enable the admin console for specific users
 
 ## Run Locally
 
@@ -218,6 +230,10 @@ GROQ_MODEL=llama-3.1-8b-instant
 BACKEND_URL=http://127.0.0.1:8000
 DATABASE_URL=sqlite:///./student_guardian.db
 ALLOWED_ORIGINS=*
+TOKEN_TTL_MINUTES=480
+REGISTRATION_MODE=open
+REGISTRATION_INVITE_CODE=
+ADMIN_EMAILS=
 ```
 
 ### Meaning
@@ -227,6 +243,10 @@ ALLOWED_ORIGINS=*
 - `BACKEND_URL`: frontend target backend URL
 - `DATABASE_URL`: database connection string
 - `ALLOWED_ORIGINS`: CORS allowed frontend origins
+- `TOKEN_TTL_MINUTES`: access token lifetime
+- `REGISTRATION_MODE`: `open`, `invite_only`, or `closed`
+- `REGISTRATION_INVITE_CODE`: required code when invite-only mode is enabled
+- `ADMIN_EMAILS`: comma-separated emails that should receive admin access
 
 ## Deployment
 
@@ -246,6 +266,10 @@ Backend env vars:
 - `DATABASE_URL`
 - `GROQ_API_KEY`
 - `GROQ_MODEL`
+- `TOKEN_TTL_MINUTES`
+- `REGISTRATION_MODE`
+- `REGISTRATION_INVITE_CODE`
+- `ADMIN_EMAILS`
 - `ALLOWED_ORIGINS`
 
 Health endpoint:
@@ -279,8 +303,18 @@ It defines:
 You still need to set:
 - `GROQ_API_KEY` on the backend
 - `GROQ_MODEL` on the backend if you want to override the default
+- `ADMIN_EMAILS` on the backend if you want an admin account
+- `REGISTRATION_MODE` and `REGISTRATION_INVITE_CODE` if you want to restrict public signups
 - `ALLOWED_ORIGINS` on the backend
 - `BACKEND_URL` on the frontend
+
+## Tests
+
+Run the automated integration tests with:
+
+```bash
+python -m unittest tests.test_app
+```
 
 ## Current Limitations
 

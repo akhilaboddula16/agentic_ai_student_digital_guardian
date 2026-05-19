@@ -1,7 +1,8 @@
 package com.studentguardian.demo
 
-// In a real Android app, use UsageStatsManager.
-// Required permission: android.permission.PACKAGE_USAGE_STATS
+// Real Android integration should use UsageStatsManager and the
+// PACKAGE_USAGE_STATS permission. This file still stays lightweight
+// because the repo is not a full Android Studio project yet.
 
 class UsageTracker {
     fun getTodayUsage(): Map<String, Int> {

@@ -6,6 +6,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     password: str
     role: str  # parent or student
+    invite_code: str | None = None
 
 
 class LoginRequest(BaseModel):
@@ -14,5 +15,4 @@ class LoginRequest(BaseModel):
 
 
 class PairRequest(BaseModel):
-    parent_id: int
     pair_code: str
