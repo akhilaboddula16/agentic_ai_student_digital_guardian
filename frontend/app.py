@@ -310,6 +310,11 @@ def render_empty_state(message: str):
 
 
 def parse_error(error: Exception) -> str:
+    if isinstance(error, requests.Timeout):
+        return (
+            "The backend took too long to respond. On Render free tier this usually means "
+            "the API is waking up from sleep. Please wait a moment and try again."
+        )
     if isinstance(error, requests.HTTPError) and error.response is not None:
         try:
             payload = error.response.json()

@@ -20,14 +20,23 @@ BASE_URL = (
     or "http://127.0.0.1:8000"
 ).rstrip("/")
 
+REQUEST_TIMEOUT_SECONDS = 60
+
 
 def post(path, payload):
-    response = requests.post(f"{BASE_URL}{path}", json=payload, timeout=20)
+    response = requests.post(
+        f"{BASE_URL}{path}",
+        json=payload,
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
     response.raise_for_status()
     return response.json()
 
 
 def get(path):
-    response = requests.get(f"{BASE_URL}{path}", timeout=20)
+    response = requests.get(
+        f"{BASE_URL}{path}",
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
     response.raise_for_status()
     return response.json()
