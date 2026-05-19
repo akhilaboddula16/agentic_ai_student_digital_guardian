@@ -3,6 +3,6 @@ uvicorn
 sqlalchemy
 pydantic
 python-dotenv
-google-genai
+groq
 email-validator
 psycopg[binary]

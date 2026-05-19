@@ -29,7 +29,7 @@ The app supports a simple parent-student monitoring flow:
 - Usage limit checks
 - Alert generation
 - Daily usage report
-- Gemini-powered chatbot with fallback response
+- Groq-powered chatbot with fallback response
 - Simple agent workflow:
   - Monitoring Agent
   - Analysis Agent
@@ -42,7 +42,7 @@ The app supports a simple parent-student monitoring flow:
 - Backend: `FastAPI`, `SQLAlchemy`, `Pydantic`
 - Frontend: `Streamlit`, `Pandas`
 - Database: `SQLite` locally, `PostgreSQL` supported for deployment
-- AI: `Google Gemini` via `google-genai`
+- AI: `Groq` via `groq`
 - Deployment: `Render`, `Streamlit Community Cloud`
 
 ## Project Structure
@@ -143,21 +143,22 @@ pip install -r requirements.txt
 copy .env.example .env
 ```
 
-### 5. Add your Gemini API key
+### 5. Add your Groq API key
 
-Put your real Gemini key in `.env`, not in `.env.example`.
+Put your real Groq key in `.env`, not in `.env.example`.
 
 Example:
 
 ```env
-GEMINI_API_KEY=your_real_key_here
+GROQ_API_KEY=your_real_key_here
+GROQ_MODEL=llama-3.1-8b-instant
 BACKEND_URL=http://127.0.0.1:8000
 ```
 
 Notes:
 - `DATABASE_URL` is optional for local development
 - `ALLOWED_ORIGINS` is optional for local development
-- if `GEMINI_API_KEY` is empty, the chatbot still works with a fallback response
+- if `GROQ_API_KEY` is empty, the chatbot still works with a fallback response
 
 ## Run Locally
 
@@ -212,7 +213,8 @@ Use this order while testing:
 ### Local `.env`
 
 ```env
-GEMINI_API_KEY=
+GROQ_API_KEY=
+GROQ_MODEL=llama-3.1-8b-instant
 BACKEND_URL=http://127.0.0.1:8000
 DATABASE_URL=sqlite:///./student_guardian.db
 ALLOWED_ORIGINS=*
@@ -220,7 +222,8 @@ ALLOWED_ORIGINS=*
 
 ### Meaning
 
-- `GEMINI_API_KEY`: enables Gemini chatbot responses
+- `GROQ_API_KEY`: enables Groq chatbot responses
+- `GROQ_MODEL`: optional Groq model override for chatbot requests
 - `BACKEND_URL`: frontend target backend URL
 - `DATABASE_URL`: database connection string
 - `ALLOWED_ORIGINS`: CORS allowed frontend origins
@@ -241,7 +244,8 @@ This repo is prepared for:
 
 Backend env vars:
 - `DATABASE_URL`
-- `GEMINI_API_KEY`
+- `GROQ_API_KEY`
+- `GROQ_MODEL`
 - `ALLOWED_ORIGINS`
 
 Health endpoint:
@@ -273,7 +277,8 @@ It defines:
 - `student-digital-guardian-frontend`
 
 You still need to set:
-- `GEMINI_API_KEY` on the backend
+- `GROQ_API_KEY` on the backend
+- `GROQ_MODEL` on the backend if you want to override the default
 - `ALLOWED_ORIGINS` on the backend
 - `BACKEND_URL` on the frontend
 

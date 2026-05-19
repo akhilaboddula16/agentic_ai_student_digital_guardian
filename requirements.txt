@@ -5,7 +5,7 @@ pydantic
 python-dotenv
 streamlit
 requests
-google-genai
+groq
 pandas
 email-validator
 psycopg[binary]
